@@ -19,9 +19,10 @@ package crdb
 import (
 	"context"
 	"database/sql"
+	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 
 	"github.com/jackc/pgx"
-	"github.com/lib/pq"
 )
 
 // ExecuteTx runs fn inside a transaction and retries it as needed.
@@ -66,10 +67,10 @@ import (
 //    })
 //
 func ExecuteTx(
-	ctx context.Context, db *sql.DB, txopts *sql.TxOptions, fn func(*sql.Tx) error,
+	ctx context.Context, db *sqlx.DB, txOpts *sql.TxOptions, fn func(*sqlx.Tx) error,
 ) error {
 	// Start a transaction.
-	tx, err := db.BeginTx(ctx, txopts)
+	tx, err := db.BeginTxx(ctx, txOpts)
 	if err != nil {
 		return err
 	}

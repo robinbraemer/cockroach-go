@@ -18,6 +18,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"sync"
 	"testing"
 
@@ -31,11 +32,11 @@ func TestExecuteTx(t *testing.T) {
 func TestExecuteInTx(t *testing.T) {
 	executeTx := func(
 		ctx context.Context,
-		db *sql.DB,
+		db *sqlx.DB,
 		opts *sql.TxOptions,
-		fn func(*sql.Tx) error,
+		fn func(*sqlx.Tx) error,
 	) error {
-		tx, err := db.BeginTx(ctx, opts)
+		tx, err := db.BeginTxx(ctx, opts)
 		if err != nil {
 			return err
 		}
@@ -50,12 +51,13 @@ func testExecuteTxInner(
 	t *testing.T,
 	executeTxFn func(
 		context.Context,
-		*sql.DB,
+		*sqlx.DB,
 		*sql.TxOptions,
-		func(*sql.Tx) error,
+		func(*sqlx.Tx) error,
 	) error,
 ) {
-	db, stop := testserver.NewDBForTest(t)
+	db_, stop := testserver.NewDBForTest(t)
+	db := sqlx.NewDb(db_, "postgres")
 	defer stop()
 
 	initStmt := `
@@ -96,7 +98,7 @@ INSERT INTO d.t (acct, balance) VALUES (1, 100), (2, 100);
 		errCh := make(chan error, 1)
 		go func() {
 			*iter = 0
-			errCh <- executeTxFn(context.Background(), db, nil, func(tx *sql.Tx) error {
+			errCh <- executeTxFn(context.Background(), db, nil, func(tx *sqlx.Tx) error {
 				*iter++
 				bal1, bal2, err := getBalances(tx)
 				if err != nil {
